@@ -161,7 +161,7 @@ def health():
 @app.get("/astro-ph/new", summary="Get today's astro-ph new papers; fallback to most recent date if none today")
 def get_new_astroph(
     max_results: int = Query(default=200, ge=1, le=500),
-    include_abstracts: bool = Query(default=True),
+    include_abstracts: bool = Query(default=False),
 ):
     # 1) Try RSS first (updated daily). :contentReference[oaicite:4]{index=4}
     r = requests.get(ARXIV_RSS_ASTROPH, timeout=30)
@@ -199,6 +199,18 @@ def get_new_astroph(
         "date": dt.date.today().isoformat(),
         "source": ARXIV_RSS_ASTROPH,
         "papers": papers,
+    }
+
+@app.get("/astro-ph/papers")
+def get_papers_by_id(ids: str):
+    """
+    ids = comma-separated arXiv IDs
+    """
+    id_list = ids.split(",")
+    papers = _fetch_arxiv_api_metadata(id_list)
+
+    return {
+        "papers": papers
     }
 
 @app.get("/privacy")
