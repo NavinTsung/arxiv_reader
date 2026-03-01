@@ -154,6 +154,19 @@ def _fetch_arxiv_api_metadata(ids, max_results=500):
 
     return results
 
+def _recent_date_to_iso(date_str: str) -> str | None:
+    """
+    Converts 'Fri, 27 Feb 2026' -> '2026-02-27'
+    Returns None if parsing fails.
+    """
+    if not date_str:
+        return None
+    try:
+        d = dt.datetime.strptime(date_str, "%a, %d %b %Y").date()
+        return d.isoformat()
+    except Exception:
+        return None
+
 @app.get("/health", summary="Health check")
 def health():
     return {"ok": True}
@@ -168,7 +181,7 @@ def get_new_astroph(
     r.raise_for_status()
     papers = _parse_rss(r.text)[:max_results]
 
-    # 2) If no papers today, fallback to /recent and grab the most recent date block :contentReference[oaicite:5]{index=5}
+    # 2) If no papers today, fallback to /recent and grab the most recent date block
     if len(papers) == 0:
         recent_url = f"{ARXIV_RECENT_ASTROPH}?show=2000&skip=0"
         rr = requests.get(recent_url, timeout=30)
@@ -177,17 +190,22 @@ def get_new_astroph(
         date_str, ids = _parse_recent_latest_date_block(rr.text)
         ids = ids[:max_results]
 
-        # If we want abstracts, fetch via arXiv API (Atom) :contentReference[oaicite:6]{index=6}
-        if include_abstracts:
-            papers = _fetch_arxiv_api_metadata(ids, max_results=max_results)
-        else:
-            papers = [{"id": x, "title": "", "authors": [], "abstract": "", "link": f"https://arxiv.org/abs/{x}"} for x in ids]
+        # IMPORTANT CHANGE:
+        # Always fetch metadata (at least titles/authors) for fallback IDs using arXiv API,
+        # so the GPT can select papers by title without pulling all abstracts.
+        papers = _fetch_arxiv_api_metadata(ids, max_results=max_results)
+
+        if not include_abstracts:
+            for p in papers:
+                p["abstract"] = ""
 
         return {
-            "date": date_str or dt.date.today().isoformat(),
+            "date": _recent_date_to_iso(date_str) or (date_str or dt.date.today().isoformat()),
             "source": recent_url,
             "papers": papers,
             "note": "No papers found in today's RSS feed; fell back to most recent date on /recent.",
+            "is_fallback": True,
+            "fallback_date_human": date_str,
         }
 
     # Normal RSS path
