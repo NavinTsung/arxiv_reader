@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 import datetime as dt
 import re
 import requests
@@ -88,3 +89,7 @@ def get_new_astroph(
         "source": ARXIV_RSS_ASTROPH,
         "papers": papers,
     }
+
+@app.get("/privacy")
+def privacy():
+    return FileResponse("privacy.html")
