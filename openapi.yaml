@@ -3,7 +3,7 @@ info:
   title: arXiv Astro-Ph Digest API
   version: 1.0.0
 servers:
-  - url: https://YOUR-DOMAIN
+  - url: https://arxiv-reader.onrender.com
 paths:
   /health:
     get:
